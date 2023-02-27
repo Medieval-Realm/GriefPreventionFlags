@@ -1,10 +1,10 @@
 package me.ryanhamshire.GPFlags;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.*;
 
 import me.ryanhamshire.GPFlags.commands.*;
-import me.ryanhamshire.GPFlags.listener.RidableMoveListener;
+import me.ryanhamshire.GPFlags.listener.EntityMoveListener;
+import me.ryanhamshire.GPFlags.metrics.Metrics;
 import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import org.bukkit.Bukkit;
@@ -15,7 +15,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import me.ryanhamshire.GPFlags.flags.FlagDef_ViewContainers;
 import me.ryanhamshire.GPFlags.listener.PlayerListener;
-import me.ryanhamshire.GPFlags.metrics.Metrics;
 import me.ryanhamshire.GPFlags.util.Util;
 
 /**
@@ -39,9 +38,10 @@ public class GPFlags extends JavaPlugin {
         this.playerListener = new PlayerListener();
         Bukkit.getPluginManager().registerEvents(playerListener, this);
         try {
-            Class.forName("org.purpurmc.purpur.event.entity.RidableMoveEvent");
-            Bukkit.getPluginManager().registerEvents(new RidableMoveListener(), this);
+            Class.forName("io.papermc.paper.event.entity.EntityMoveEvent");
+            Bukkit.getPluginManager().registerEvents(new EntityMoveListener(), this);
         } catch (ClassNotFoundException ignored) {}
+
         this.flagsDataStore = new FlagsDataStore();
         reloadConfig();
 
@@ -74,12 +74,19 @@ public class GPFlags extends JavaPlugin {
             }
         }
 
-        new Metrics(this);
+        Metrics metrics = new Metrics(this, 17786);
+        metrics.addCustomChart(new Metrics.AdvancedPie("most_popular_flags", () -> {
+            Map<String, Integer> valueMap = new HashMap<>();
+            for (String flag : GPFlags.getInstance().getFlagManager().getUsedFlags()) {
+                valueMap.put(flag, 1);
+            }
+            return valueMap;
+        }));
 
         float finish = (float) (System.currentTimeMillis() - start) / 1000;
         Util.log("Successfully loaded in &b%.2f seconds", finish);
         if (getDescription().getVersion().contains("SNAPSHOT")) {
-            Util.log("&eYou are running a Beta version, things may not operate as expected");
+            Util.log("&eYou are running a snapshot version, things may not operate as expected");
         }
     }
 
