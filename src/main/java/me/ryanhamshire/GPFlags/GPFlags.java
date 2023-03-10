@@ -3,6 +3,9 @@ package me.ryanhamshire.GPFlags;
 import java.util.*;
 
 import me.ryanhamshire.GPFlags.commands.*;
+import me.ryanhamshire.GPFlags.flags.FlagDefinition;
+import me.ryanhamshire.GPFlags.listener.ClaimModifiedListener;
+import me.ryanhamshire.GPFlags.listener.ClaimResizeListener;
 import me.ryanhamshire.GPFlags.listener.EntityMoveListener;
 import me.ryanhamshire.GPFlags.metrics.Metrics;
 import me.ryanhamshire.GriefPrevention.Claim;
@@ -42,6 +45,14 @@ public class GPFlags extends JavaPlugin {
             Bukkit.getPluginManager().registerEvents(new EntityMoveListener(), this);
         } catch (ClassNotFoundException ignored) {}
 
+        try {
+            Class.forName("me.ryanhamshire.GriefPrevention.events.ClaimResizeEvent");
+            Bukkit.getPluginManager().registerEvents(new ClaimResizeListener(), this);
+        } catch (ClassNotFoundException e) {
+            Bukkit.getPluginManager().registerEvents(new ClaimModifiedListener(), this);
+        }
+
+
         this.flagsDataStore = new FlagsDataStore();
         reloadConfig();
 
@@ -75,13 +86,13 @@ public class GPFlags extends JavaPlugin {
         }
 
         Metrics metrics = new Metrics(this, 17786);
-        metrics.addCustomChart(new Metrics.AdvancedPie("most_popular_flags", () -> {
-            Map<String, Integer> valueMap = new HashMap<>();
-            for (String flag : GPFlags.getInstance().getFlagManager().getUsedFlags()) {
-                valueMap.put(flag, 1);
-            }
-            return valueMap;
-        }));
+        Set<String> usedFlags = GPFlags.getInstance().getFlagManager().getUsedFlags();
+        Collection<FlagDefinition> defs = GPFlags.getInstance().getFlagManager().getFlagDefinitions();
+        for (FlagDefinition def : defs) {
+            metrics.addCustomChart(new Metrics.SimplePie("using_" + def.getName().toLowerCase(), () -> {
+                return String.valueOf(usedFlags.contains(def.getName().toLowerCase()));
+            }));
+        }
 
         float finish = (float) (System.currentTimeMillis() - start) / 1000;
         Util.log("Successfully loaded in &b%.2f seconds", finish);
