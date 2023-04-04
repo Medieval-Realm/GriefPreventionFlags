@@ -71,20 +71,6 @@ public class GPFlags extends JavaPlugin {
         getCommand("unsetserverflag").setExecutor(new CommandUnsetServerFlag());
         getCommand("unsetworldflag").setExecutor(new CommandUnsetWorldFlag());
 
-        Collection<Claim> claims = GriefPrevention.instance.dataStore.getClaims();
-        for (Claim claim : claims) {
-            if (GPFlags.getInstance().getFlagManager().getFlag(claim, "AllowBlockExplosions") != null) {
-                claim.areExplosivesAllowed = true;
-            }
-            if (GPFlags.getInstance().getFlagManager().getFlag(claim, "KeepLoaded") != null) {
-                ArrayList<Chunk> chunks = claim.getChunks();
-                for (Chunk chunk : chunks) {
-                    chunk.setForceLoaded(true);
-                    chunk.load(true);
-                }
-            }
-        }
-
         Metrics metrics = new Metrics(this, 17786);
         Set<String> usedFlags = GPFlags.getInstance().getFlagManager().getUsedFlags();
         Collection<FlagDefinition> defs = GPFlags.getInstance().getFlagManager().getFlagDefinitions();
@@ -94,11 +80,14 @@ public class GPFlags extends JavaPlugin {
             }));
         }
 
+        metrics.addCustomChart(new Metrics.SimplePie("griefprevention_version", () -> {
+            return GriefPrevention.instance.getDescription().getVersion();
+        }));
+
+        UpdateChecker.checkForUpdates(this);
+
         float finish = (float) (System.currentTimeMillis() - start) / 1000;
         Util.log("Successfully loaded in &b%.2f seconds", finish);
-        if (getDescription().getVersion().contains("SNAPSHOT")) {
-            Util.log("&eYou are running a snapshot version, things may not operate as expected");
-        }
     }
 
     public void onDisable() {

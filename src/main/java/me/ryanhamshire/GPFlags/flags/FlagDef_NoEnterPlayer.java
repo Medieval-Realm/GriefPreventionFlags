@@ -25,30 +25,22 @@ public class FlagDef_NoEnterPlayer extends PlayerMovementFlagDefinition {
 
     @Override
     public void onFlagSet(Claim claim, String string) {
-        String[] args = string.split(" ");
-        for (int i = 0; i < args.length; i++) {
-            Player target = Bukkit.getPlayer(args[i]);
-            if (target != null && target.getName().equalsIgnoreCase(args[i])) {
-                if (claim.contains(Util.getInBoundsLocation(target), false, false)) {
-                    if (!target.hasPermission("gpflags.bypass.noenter")) {
-                        GriefPrevention.instance.ejectPlayer(target);
-                    }
-                }
+        Flag flag = this.getFlagInstanceAtLocation(claim.getLesserBoundaryCorner(), null);
+        for (Player player : Util.getPlayersIn(claim)) {
+            if (!isAllowed(player, claim, flag)) {
+                GriefPrevention.instance.ejectPlayer(player);
+                Util.sendClaimMessage(player, TextMode.Err, Messages.NoEnterPlayerMessage);
             }
         }
     }
 
     @Override
     public boolean allowMovement(Player player, Location lastLocation, Location to, Claim claimFrom, Claim claimTo) {
-        if (player.hasPermission("gpflags.bypass.noenter")) return true;
-
         Flag flag = this.getFlagInstanceAtLocation(to, player);
         if (flag == null) return true;
-        if (!flag.parameters.toUpperCase().contains(player.getName().toUpperCase())) return true;
-        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(to, false, null);
-        if (player.getName().equalsIgnoreCase(claim.getOwnerName())) return true;
-        PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId());
-        if (playerData.ignoreClaims) return true;
+
+        if (isAllowed(player, claimTo, flag)) return true;
+
         Util.sendClaimMessage(player, TextMode.Err, Messages.NoEnterPlayerMessage);
         return false;
     }
@@ -56,13 +48,32 @@ public class FlagDef_NoEnterPlayer extends PlayerMovementFlagDefinition {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player player = e.getPlayer();
-        Flag flag = this.getFlagInstanceAtLocation(player.getLocation(), player);
+        Location loc = player.getLocation();
+
+        Flag flag = this.getFlagInstanceAtLocation(loc, player);
         if (flag == null) return;
-        if (!flag.parameters.toUpperCase().contains(player.getName().toUpperCase())) return;
+
         Claim claim = GriefPrevention.instance.dataStore.getClaimAt(player.getLocation(), false, null);
-        if (player.getName().equalsIgnoreCase(claim.getOwnerName())) return;
+        if (isAllowed(player, claim, flag)) return;
+
         Util.sendClaimMessage(player, TextMode.Err, Messages.NoEnterPlayerMessage);
         GriefPrevention.instance.ejectPlayer(player);
+    }
+
+    public boolean isAllowed(Player p, Claim c, Flag f) {
+        if (c == null) return true;
+        if (p.hasPermission("gpflags.bypass.noenter")) return true;
+        PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(p.getUniqueId());
+        if (playerData.ignoreClaims) return true;
+        String playername = p.getName();
+        if (playername.equalsIgnoreCase(c.getOwnerName())) return true;
+
+        String[] paramArray = f.getParametersArray();
+        for (String nameOrUUID : paramArray) {
+            if (nameOrUUID.equalsIgnoreCase(playername)) return false;
+            if (nameOrUUID.equalsIgnoreCase(String.valueOf(p.getUniqueId()))) return false;
+        }
+        return true;
     }
 
     @Override
